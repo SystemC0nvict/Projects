@@ -1,0 +1,6 @@
+Day:1;TOD:10:00;Airline:United;Item:ShavingBrush
+Day:2;TOD:07:30;Airline:JetBlue;Item:NailCutter
+Day:2;TOD:11:00;Airline:Delta;Item:Gun
+Day:2;TOD:16:30;Airline:AmericanAirlines;Item:Wine
+Day:2;TOD:17:00;Airline:CapeAir;Item:Knife
+Day:2;TOD:18:50;Airline:Southwest;Item:Blade
