@@ -1,0 +1,328 @@
+#include <sys/stat.h>
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <vector>
+#include <string>
+
+#define MAX_IMAP_BLOCKS  40
+#define NUM_SEG  32
+#define BLOCK_SIZE  1024
+#define SEGMENT_SIZE  1024 * BLOCK_SIZE
+#define MAX_BLOCKS 128
+#define INODES_PER_MAP 256
+
+using namespace std;
+
+typedef unsigned int block_number;
+
+typedef struct inode {
+	char filename[256];
+	//file size in blocks
+	int filesize = 0;
+	block_number blocks[MAX_BLOCKS];
+} inode;
+
+size_t getFilesize(const char* filename) {
+    struct stat st;
+    if(stat(filename, &st) != 0) {
+        return 0;
+    }
+    return st.st_size;   
+}
+
+//need to keep track of checkpoint index on exit
+unsigned int checkpoint[MAX_IMAP_BLOCKS];
+char clean_vs_live[NUM_SEG];
+char memorySegment[SEGMENT_SIZE];
+vector <string> fileNW;
+
+void ZeroOutSegment() {
+	for (int i = 0; i < SEGMENT_SIZE; i++) memorySegment[i] = '0';
+	return;
+}
+
+int main(int argc, char *argv[]){
+	//note write checkpoint out to drive file on exit call
+	vector<string> printLFS;
+	vector<int> LFSblockNum;
+	int imapbuf[256];
+	int imapcount = 0;
+	int c;
+	for(c = 0; c < MAX_IMAP_BLOCKS; c++){
+		checkpoint[c] = 0;
+		//cout << "checkpoint at " << checkpoint[c] << endl;
+	
+	}
+	for(c = 0; c < NUM_SEG; c++){
+		clean_vs_live[c] = 'c';
+	
+	}
+	ZeroOutSegment();
+	
+	//load in checkpoint file if it exists
+	//imap is 160bytes
+	
+	//need a byte to mark if each seg is clean or live
+	int checkpointIndex = 0;
+	int cleanIndex = 0;
+	
+	cout << "type: import <filename> <lfs_filename>, remove, list, exit" << endl;
+	string cmd;
+	//change back to 8
+	int blockNum = 8;
+	//bool freeBlocks[32][24];
+	while(cin >> cmd){
+		
+		if(cmd == "exit"){
+			//write out metadata and file sys data in mem
+			
+			/*
+			ofstream segFile;
+			segFile.open(cstr);
+			if(!segFile.is_open()){
+				cout << "couldn't open output file" << endl;
+				exit(0);
+			}else{
+				for(int j = 0; j < SEGMENT_SIZE; j++){
+					segFile << '0';
+				}
+				//segFile << endl;
+				//segFile << 5463761234;
+				segFile.close();
+			}
+		*/
+			ofstream checkfile;
+			checkfile.open("./DRIVE/checkpoint.txt");
+			if(!checkfile.is_open()){
+				cout << "couldn't open file\n";
+				exit(0);
+			}else{
+				int j;
+				for(j = 0; j < MAX_IMAP_BLOCKS; j++){
+					checkfile << checkpoint[j];
+				}
+				clean_vs_live[cleanIndex] = 'l';
+				for(j = 0; j < NUM_SEG; j++){
+					checkfile << clean_vs_live[j];
+				}
+			}
+			checkfile.close();
+			
+			
+			/*
+			FILE* fp;
+			size_t nw;
+			fp = fopen("./DRIVE/checkpoint.txt", "w+");
+			if(fp == NULL){
+				fprintf(stderr, " couldn't open segfile\n");
+				exit(1);
+			}
+			clean_vs_live[cleanIndex] = 'l';
+			memcpy(memorySegment+((blockNum)*BLOCK_SIZE), imapbuf, 256);
+			//cout <<"checkpoint index " << checkpointIndex << endl;
+			//checkpoint[checkpointIndex] = (char)blockNum;
+			char temp[4*MAX_IMAP_BLOCKS];
+			//memcpy(temp, checkpoint, MAX_IMAP_BLOCKS);
+			//nw = fwrite(temp, sizeof(char), 4*MAX_IMAP_BLOCKS, fp);
+			nw = fwrite(checkpoint, sizeof(int), MAX_IMAP_BLOCKS, fp);
+			nw = fwrite(clean_vs_live, sizeof(char), NUM_SEG, fp);
+			if(nw > SEGMENT_SIZE){
+				fprintf(stderr, "could not write to segfile\n");
+				exit(1);
+			}
+			fclose(fp);
+			*/
+				
+			FILE* fp;
+			size_t nw;	
+			fp = fopen("./DRIVE/SEGMENT1.txt", "r+");
+			if(fp == NULL){
+				fprintf(stderr, " couldn't open segfile\n");
+				exit(1);
+			}	
+			
+			nw = fwrite(memorySegment, sizeof(char), SEGMENT_SIZE, fp);
+			fclose(fp);
+			
+			exit(0);
+		} else if(cmd == "import"){
+			string filename;
+			cin >> filename;
+			string lfs_filename;
+			cin >> lfs_filename;
+			//cout << filename << " " << lfs_filename << endl;
+			
+			//read in from filename
+			ifstream inputfile(filename);
+			//string line;
+			if(!inputfile.is_open()){
+				cout << "cant open file" << endl;
+				exit(0);
+			}
+			char c;
+			int byteInBlock = 0;
+			//make inode
+			inode in1;
+			//blockNum in this case is 8-1023 bc it is used to index into segment
+			//put -8 in index to array
+			in1.blocks[blockNum-8] = blockNum;
+			
+			sprintf(in1.filename, lfs_filename.c_str());
+			//in1.filename = lfs_filename;
+			size_t size;
+			size = getFilesize(filename.c_str());
+			in1.filesize = size;
+			cout <<"file size: " << in1.filesize << endl;
+			while(inputfile.get(c)){
+				//memcpy((memorySegment+((blockNum)*BLOCK_SIZE)) , &in1, sizeof(inode));
+				if((blockNum * BLOCK_SIZE)+byteInBlock < SEGMENT_SIZE){
+					int memSegIndex = (blockNum * BLOCK_SIZE) + byteInBlock;
+					memcpy(memorySegment+((blockNum)*BLOCK_SIZE), &c, size);
+					byteInBlock++;
+					if(byteInBlock == BLOCK_SIZE){
+						//in1.filesize++;
+						byteInBlock = 0;
+						
+						blockNum++;
+						in1.blocks[blockNum] = blockNum;
+						
+						
+					}
+				}else{
+					string num_to_str;
+					ostringstream convert;
+					convert << cleanIndex;
+					num_to_str = convert.str();
+					string segfile = "SEGMENT" + num_to_str + ".txt";
+					const char* segfileChar = segfile.c_str();
+					//write to seg file
+					FILE *fp;
+					size_t nw;
+					fp = fopen(segfileChar, "r+");
+					if(fp == NULL){
+						fprintf(stderr, " couldn't open segfile\n");
+						exit(1);
+					}
+					nw = fwrite(memorySegment, sizeof(char), SEGMENT_SIZE, fp);
+					if(nw != SEGMENT_SIZE){
+						fprintf(stderr, "could not write to segfile\n");
+						exit(1);
+					}
+					fclose(fp);
+					ZeroOutSegment();
+					//go to next seg
+					blockNum = 8;
+					clean_vs_live[cleanIndex] = 'l';
+					cleanIndex++;
+					//update checkpoint here
+				}
+				
+			}
+			inputfile.close();
+			
+			
+			
+			
+			//block num + 1 is loc of inode
+			blockNum++;
+			//store file info in fileNameMap.txt
+			ofstream mapFile("./DRIVE/fileNameMap.txt");
+			//string line;
+			fileNW.push_back(lfs_filename);
+			fileNW.push_back(to_string(blockNum));
+			if(!mapFile.is_open()){
+				cout<< "cant open file" << endl;
+				exit(0);
+			}else{
+				//mapFile << (lfs_filename.c_str()) << endl;
+				//mapFile << blockNum << endl;
+				for(int w = 0; w < fileNW.size(); w++){
+					mapFile << fileNW[w].c_str() << endl;
+				}
+			}
+			mapFile.close();
+			
+			memcpy((memorySegment+((blockNum)*BLOCK_SIZE)) , &in1, sizeof(inode));
+			imapbuf[imapcount] = blockNum;
+			imapcount++;
+			blockNum++;
+			
+			
+			
+			
+			if(imapcount == 256){//add to memcpy,restart imap count, and add to checkpoint
+				memcpy(memorySegment+((blockNum)*BLOCK_SIZE), imapbuf, 256);
+				//put in checkpoint
+				//checkpoint[checkpointIndex] = blockNum;
+				checkpointIndex++;
+				blockNum++;
+				imapcount = 0;
+			}
+			
+
+		} else if(cmd == "remove"){
+		
+		
+		} else if(cmd == "cat"){
+		
+		
+		} else if(cmd == "display"){
+		
+		
+		} else if(cmd == "overwrite"){
+		
+		
+		} else if(cmd == "list"){
+			ifstream mapFile("./DRIVE/fileNameMap.txt");
+			//size_t map_size = getFilesize(mapFile);
+			if(!mapFile.is_open()){
+				cout<< "cant open file" << endl;
+				exit(0);
+			}else{
+				size_t nr;
+				string line;
+				bool fileLine = true;
+				while(!mapFile.eof()){
+					getline(mapFile, line);
+					//cout << line << endl;
+					if(fileLine == true){
+						printLFS.push_back(line);
+						fileLine = false;
+					}else if(fileLine == false){
+						int lineInt = stoi(line);
+						LFSblockNum.push_back(lineInt);
+						fileLine = true;
+					}
+				}
+				
+			}
+			mapFile.close();
+			
+			
+			//print out all files and sizes
+			int p;
+			for(p = 0; p < LFSblockNum.size(); p++){
+				cout << "lfsblocknum " << LFSblockNum.size() << endl;
+				inode tempinode;
+				memcpy(&tempinode, memorySegment + (BLOCK_SIZE * (LFSblockNum[p])), sizeof(inode));
+				//cout << printLFS[p] << endl;
+				cout << "name " << tempinode.filename << " size " << tempinode.filesize << endl;
+				//need to print out inode data <size of file>
+				//LFSblockNum[p]
+				//cout << LFSblockNum[p] << endl;
+				
+			}
+			
+		
+		} else{
+			cout << "invalid command please enter a valid one" << endl;
+		}
+		cout << "type: import <filename> <lfs_filename>, remove, list, exit" << endl;
+	}
+	return 0;
+}
+
