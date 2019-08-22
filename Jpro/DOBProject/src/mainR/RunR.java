@@ -22,6 +22,8 @@ import java.util.ArrayList;
      primary key (id));
  */
 public class RunR {
+	public static Connection conn;
+	public static Statement stmt;
 	
 	//method returns an Arraylist <string> to be used for insert statement into sql table
 	public static ArrayList <String> sqlIns() {
@@ -36,6 +38,7 @@ public class RunR {
 		return ins;
 	}
 	
+	// returns an arrayList of Strings
 	public static ArrayList <String> trans(){
 		ArrayList <String> tables = new ArrayList <String> ();
 		Scanner in = new Scanner(System.in);
@@ -44,7 +47,7 @@ public class RunR {
 		String idnum;
 		boolean cont = false;
 		while(cont == false) {
-			System.out.println("Please enter the name of the database to transfer files from.");
+			System.out.println("Please enter the name of the table to transfer files from.");
 			source = in.nextLine();
 			if((source.equals("bxapps"))|| (source.equals("mhapps"))) {
 				cont = true;
@@ -57,7 +60,7 @@ public class RunR {
 		
 		cont = false;
 		while(cont == false) {
-			System.out.println("Please enter the name of the database to transfer files to.");
+			System.out.println("Please enter the name of the table to transfer files to.");
 			dest = in.nextLine();
 			if(((dest.equals("bxapps"))|| (dest.equals("mhapps"))) && !(dest.equals(tables.get(0)))) {
 				cont = true;
@@ -75,6 +78,48 @@ public class RunR {
 		return tables;
 	}
 	
+	public static ArrayList <String> sqlmerge() throws SQLException{
+		ArrayList <String> tables = new ArrayList <String> ();
+		Scanner in = new Scanner(System.in);
+		String first;
+		String second;
+		boolean cont = false;
+		DatabaseMetaData md = conn.getMetaData();
+		ResultSet rs = md.getTables(null, null, "%", null);
+		while(rs.next()) {
+			tables.add(rs.getString(3));
+		}
+		while(cont == false) {
+			System.out.println("Please enter the name of the first table to merge.");
+			first = in.nextLine();
+			if(tables.contains(first)) {
+				cont = true;
+			}else {
+				System.out.println("Please enter a table that exists.");
+			}
+		}
+		cont = false;
+		while(cont == false) {
+			System.out.println("Please enter the name of the second table to merge.");
+			second = in.nextLine();
+			if(tables.contains(second)) {
+				cont = true;
+			}else {
+				System.out.println("Please enter a table that exists.");
+			}
+		}
+		String joinstr = "Select " + tables.get(0) + ".name, " + tables.get(1) + ".address "
+				+ "From " + tables.get(0) 
+				+ "Full Outer Join " + tables.get(1) + " On " + tables.get(0) + ".id=" + tables.get(1) + ".id";
+		rs = stmt.executeQuery(joinstr);
+		while(rs.next()) {
+			System.out.println(rs.getInt("id") + ", " + 
+					rs.getString("name") + ", " + 
+					rs.getString("address"));
+		}
+		return tables;
+	}
+	
 	//method returns the int of the id to be deleted
 	public static int sqldel() {
 		int del = 0;
@@ -87,11 +132,11 @@ public class RunR {
 
 	public static void main(String[] args) {
 		System.out.println("testing bananas");
-		try( 
-			Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/dobdata?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC",
+		try
+			{
+			conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/dobdata?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC",
 		               "myuser", "xxxx");
-			Statement stmt = conn.createStatement();	
-		){
+			stmt = conn.createStatement();
 			String cmd = "";
 //			boolean keepEnt = true;
 			Scanner input = new Scanner(System.in);
@@ -118,7 +163,7 @@ public class RunR {
 					System.out.println(countInserted + " records inserted. \n"); //number of records inserted str
 				}
 				
-				//Transfer statement switch
+				//Transfer statement switch - transfers records from one table to another and deletes from the original table
 				else if(cmd.equals("transfer")) {
 					ArrayList <String> tables = new ArrayList <String> (trans());
 					String tab2ins = "Insert into " + tables.get(1) + " (id, name, address) "
@@ -140,6 +185,10 @@ public class RunR {
 					System.out.println("The Sql Statement is: " + strDelete + "\n"); //dbg
 					int countDeleted = stmt.executeUpdate(strDelete);
 					System.out.println(countDeleted + " records deleted.\n");
+				}
+				
+				else if(cmd.equals("merge")) {
+					sqlmerge();
 				}
 				
 				//improper input switch
