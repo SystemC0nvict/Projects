@@ -25,6 +25,30 @@ public class RunR {
 	public static Connection conn;
 	public static Statement stmt;
 	
+	public static void sqlSel(String tbname) throws SQLException {
+		String strSelect = "select * from " + tbname;
+		System.out.println("The Sql Statement is: " + strSelect + "\n"); //dbg
+		
+		ResultSet rset = stmt.executeQuery(strSelect);//result of query
+		
+		
+		System.out.println("The records selected are: ");
+		int rowcount = 0;//count of number of rows in table
+		while(rset.next()) {
+			//String name = rset.getString("name");
+			//String address = rset.getString("address");
+			//System.out.println(name + "," + address);
+			
+			System.out.println(rset.getInt("id") + ", " + 
+								rset.getString("name") + ", " + 
+								rset.getString("address"));
+			
+			++rowcount;
+		}
+		
+		System.out.println("Total number of records = " + rowcount + "\n");
+	}
+	
 	//method returns an Arraylist <string> to be used for insert statement into sql table
 	public static ArrayList <String> sqlIns() {
 		Scanner input = new Scanner(System.in);
@@ -81,13 +105,16 @@ public class RunR {
 	public static ArrayList <String> sqlmerge() throws SQLException{
 		ArrayList <String> tables = new ArrayList <String> ();
 		Scanner in = new Scanner(System.in);
-		String first;
-		String second;
+		String first = "";
+		String second = "";
 		boolean cont = false;
 		DatabaseMetaData md = conn.getMetaData();
-		ResultSet rs = md.getTables(null, null, "%", null);
+		ResultSet rs = md.getTables(null, "dobdata", "%", null);
+		//int count = 0;
 		while(rs.next()) {
 			tables.add(rs.getString(3));
+			//System.out.println(rs.getString(3) + " " +  count);
+			//count++;
 		}
 		while(cont == false) {
 			System.out.println("Please enter the name of the first table to merge.");
@@ -108,10 +135,23 @@ public class RunR {
 				System.out.println("Please enter a table that exists.");
 			}
 		}
-		String joinstr = "Select " + tables.get(0) + ".name, " + tables.get(1) + ".address "
-				+ "From " + tables.get(0) 
-				+ "Full Outer Join " + tables.get(1) + " On " + tables.get(0) + ".id=" + tables.get(1) + ".id";
-		rs = stmt.executeQuery(joinstr);
+//		String joinstr = "Select " + tables.get(0) + ".name, " + tables.get(1) + ".address "
+//				+ "From " + tables.get(0) 
+//				+ "OUTER JOIN " + tables.get(1) + " ON " + tables.get(0) + ".id = " + tables.get(1) + ".id";
+//		String joinstr = "Select * FROM " + first
+//			+ " LEFT JOIN " + second + " ON " + first + ".id = " + second + ".id " 
+//			+ "UNION ALL " 
+//			+ "Select * FROM " + first 
+//			+ " RIGHT JOIN " + second + " ON " + first + ".id = " + second + ".id "
+//			+ "WHERE " + first + ".id IS NULL";
+		String uniostr = "Select * FROM " + first
+				+ " Union "
+				+ "Select * From " + second
+				+ " Order By id";
+		
+		System.out.println(uniostr);
+		
+		rs = stmt.executeQuery(uniostr);
 		while(rs.next()) {
 			System.out.println(rs.getInt("id") + ", " + 
 					rs.getString("name") + ", " + 
@@ -204,27 +244,29 @@ public class RunR {
 			//int countInserted = stmt.executeUpdate(strInsert);
 			//System.out.println(countInserted + " records inserted. \n"); //number of recors inserted str
 			
-			String strSelect = "select * from bxapps";
-			System.out.println("The Sql Statement is: " + strSelect + "\n"); //dbg
-			
-			ResultSet rset = stmt.executeQuery(strSelect);//result of query
-			
-			
-			System.out.println("The records selected are: ");
-			int rowcount = 0;//count of number of rows in table
-			while(rset.next()) {
-				//String name = rset.getString("name");
-				//String address = rset.getString("address");
-				//System.out.println(name + "," + address);
-				
-				System.out.println(rset.getInt("id") + ", " + 
-									rset.getString("name") + ", " + 
-									rset.getString("address"));
-				
-				++rowcount;
-			}
-			
-			System.out.println("Total number of records = " + rowcount);
+//			String strSelect = "select * from bxapps";
+//			System.out.println("The Sql Statement is: " + strSelect + "\n"); //dbg
+//			
+//			ResultSet rset = stmt.executeQuery(strSelect);//result of query
+//			
+//			
+//			System.out.println("The records selected are: ");
+//			int rowcount = 0;//count of number of rows in table
+//			while(rset.next()) {
+//				//String name = rset.getString("name");
+//				//String address = rset.getString("address");
+//				//System.out.println(name + "," + address);
+//				
+//				System.out.println(rset.getInt("id") + ", " + 
+//									rset.getString("name") + ", " + 
+//									rset.getString("address"));
+//				
+//				++rowcount;
+//			}
+//			
+//			System.out.println("Total number of records = " + rowcount);
+			sqlSel("bxapps");
+			sqlSel("mhapps");
 			
 		} catch(SQLException ex) {
 			ex.printStackTrace();
