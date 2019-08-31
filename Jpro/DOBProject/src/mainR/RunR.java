@@ -51,57 +51,70 @@ public class RunR {
 	
 	//method returns an Arraylist <string> to be used for insert statement into sql table
 	public static ArrayList <String> sqlIns() {
-		Scanner input = new Scanner(System.in);
+		Scanner inp = new Scanner(System.in);
 		ArrayList <String> ins = new ArrayList <String>();
 		System.out.println("Please enter your name." + "\n");
-		ins.add(input.nextLine());
+		ins.add(inp.nextLine());
 		//ins += ;
 		System.out.println("Please enter the address of the property." + "\n");
-		ins.add(input.nextLine());
-		input.close();
+		ins.add(inp.nextLine());
+		//inp.close();
 		return ins;
 	}
 	
 	// returns an arrayList of Strings
-	public static ArrayList <String> trans(){
+	public static ArrayList <String> trans() throws SQLException{
 		ArrayList <String> tables = new ArrayList <String> ();
 		Scanner in = new Scanner(System.in);
-		String source;
-		String dest;
-		String idnum;
+		String source = "";
+		String dest = "";
+		String idname;
 		boolean cont = false;
+		DatabaseMetaData md = conn.getMetaData();
+		ResultSet rs = md.getTables(null, "dobdata", "%", null);
+		//int count = 0;
+		while(rs.next()) {
+			tables.add(rs.getString(3));
+			//System.out.println(rs.getString(3) + " " +  count);
+			//count++;
+		}
 		while(cont == false) {
 			System.out.println("Please enter the name of the table to transfer files from.");
 			source = in.nextLine();
-			if((source.equals("bxapps"))|| (source.equals("mhapps"))) {
+			if(tables.contains(source)) {
 				cont = true;
-				tables.add(source);
-			}
-			else {
+			}else {
 				System.out.println("Please enter a table that exists.");
 			}
 		}
-		
 		cont = false;
 		while(cont == false) {
 			System.out.println("Please enter the name of the table to transfer files to.");
 			dest = in.nextLine();
-			if(((dest.equals("bxapps"))|| (dest.equals("mhapps"))) && !(dest.equals(tables.get(0)))) {
+			if(tables.contains(dest) && !(dest.equals(source))) {
 				cont = true;
-				tables.add(dest);
-			}
-			else {
+			}else {
 				System.out.println("Please enter a table that exists and is not the same as the source.");
 			}
 		}
-		System.out.println("Please enter the name under the application.");
-		idnum = in.nextLine();
-		tables.add(idnum);
-		in.close();
+		System.out.println("Please enter the name of the application.");
+		idname = in.nextLine();
+		//tables.add(idnum);
+		//in.close();
+		
+		String tab2ins = "Insert into " + dest + " (id, name, address) "
+				+ "Select id, name, address From " + source 
+				+ " Where name = " + "'" + idname + "'";
+		String tab1del = "Delete From " + source + " Where name = '" + idname + "'";
+		int countInserted = stmt.executeUpdate(tab2ins);
+		System.out.println(countInserted + " records inserted. \n"); //number of records inserted str
+		int countdel = stmt.executeUpdate(tab1del);
+		System.out.println(countdel + " records deleted. \n"); //number of records inserted str
 		
 		return tables;
 	}
 	
+	//prints a table that is a union of the two inserted tables
 	public static ArrayList <String> sqlmerge() throws SQLException{
 		ArrayList <String> tables = new ArrayList <String> ();
 		Scanner in = new Scanner(System.in);
@@ -161,14 +174,19 @@ public class RunR {
 	}
 	
 	//method returns the int of the id to be deleted
-	public static int sqldel() {
+	public static int sqldel() throws SQLException {
 		int del = 0;
 		Scanner inp = new Scanner(System.in);
 		System.out.println("Please enter the id of the item to be deleted.");
 		del = inp.nextInt();
 		inp.close();
+		String strDelete = "Delete from bxapps where id = " + del;
+		System.out.println("The Sql Statement is: " + strDelete + "\n"); //dbg
+		int countDeleted = stmt.executeUpdate(strDelete);
+		System.out.println(countDeleted + " records deleted.\n");
 		return del;
 	}
+	
 
 	public static void main(String[] args) {
 		System.out.println("testing bananas");
@@ -181,7 +199,7 @@ public class RunR {
 //			boolean keepEnt = true;
 			Scanner input = new Scanner(System.in);
 			while(!(cmd.equals("quit"))) {
-				System.out.println("Please enter the command." + "\n");
+				System.out.println("Please enter the command from the list. \n insert \n transfer \n delete \n merge \n quit \n ");
 				cmd = input.nextLine();
 				
 				//insert statement switch
@@ -206,27 +224,16 @@ public class RunR {
 				//Transfer statement switch - transfers records from one table to another and deletes from the original table
 				else if(cmd.equals("transfer")) {
 					ArrayList <String> tables = new ArrayList <String> (trans());
-					String tab2ins = "Insert into " + tables.get(1) + " (id, name, address) "
-							+ "Select id, name, address From " + tables.get(0) 
-							+ " Where id = " + tables.get(2);
-					String tab1del = "Delete From " + tables.get(0) + " Where id = " + tables.get(2);
-					int countInserted = stmt.executeUpdate(tab2ins);
-					System.out.println(countInserted + " records inserted. \n"); //number of records inserted str
-					int countdel = stmt.executeUpdate(tab1del);
-					System.out.println(countdel + " records deleted. \n"); //number of records inserted str
+					
 				}
 				//exit statement switch
 				else if(cmd.equals("quit"));
 				
 				//delete statement switch
 				else if(cmd.equals("delete")) {
-					int idDel = sqldel();
-					String strDelete = "Delete from bxapps where id = " + idDel;
-					System.out.println("The Sql Statement is: " + strDelete + "\n"); //dbg
-					int countDeleted = stmt.executeUpdate(strDelete);
-					System.out.println(countDeleted + " records deleted.\n");
+					sqldel();
 				}
-				
+				// unifies table data
 				else if(cmd.equals("merge")) {
 					sqlmerge();
 				}
